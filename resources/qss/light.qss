@@ -1,0 +1,8 @@
+QMainWindow {
+    background-image: url('');
+    background-repeat: no-repeat;
+    background-position: center;
+    background-attachment: fixed;
+}
+
+

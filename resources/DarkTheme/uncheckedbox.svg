@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 22 22">
+  <g id="Selection_box" data-name="Selection box" opacity="0.5">
+    <rect id="Selection_box-2" data-name="Selection box" width="22" height="22" rx="4" fill="#010101"/>
+    <path id="Selection_box_-_Outline" data-name="Selection box - Outline" d="M4,1A3,3,0,0,0,1,4V18a3,3,0,0,0,3,3H18a3,3,0,0,0,3-3V4a3,3,0,0,0-3-3H4M4,0H18a4,4,0,0,1,4,4V18a4,4,0,0,1-4,4H4a4,4,0,0,1-4-4V4A4,4,0,0,1,4,0Z" fill="#a2a4a6"/>
+  </g>
+</svg>

@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="900" height="700" viewBox="0 0 900 700">
+  <defs>
+    <linearGradient id="linear-gradient" x1="0.08" y1="0.258" x2="0.946" y2="1" gradientUnits="objectBoundingBox">
+      <stop offset="0" stop-color="#e7e6f1"/>
+      <stop offset="1" stop-color="#f3f2f8" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="linear-gradient-2" x1="0.08" y1="0.258" x2="0.946" y2="1" gradientUnits="objectBoundingBox">
+      <stop offset="0" stop-color="#fa9c2b"/>
+      <stop offset="1" stop-color="#fa9c2b" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="linear-gradient-3" x1="0.08" y1="0.258" x2="0.946" y2="1" gradientUnits="objectBoundingBox">
+      <stop offset="0" stop-color="#fa9c2b" stop-opacity="0"/>
+      <stop offset="1" stop-color="#fa9c2b"/>
+    </linearGradient>
+  </defs>
+  <g id="Background_Image" data-name="Background Image" transform="translate(7093.777 7386.037)">
+    <rect id="Rectangle_7491" data-name="Rectangle 7491" width="900" height="700" transform="translate(-7093.777 -7386.037)" fill="#f3f2f8"/>
+    <path id="Intersection_1" data-name="Intersection 1" d="M491.042,432a218.982,218.982,0,0,0,25.225-102.366c0-121.426-98.4-219.862-219.783-219.862S76.7,208.208,76.7,329.634A218.982,218.982,0,0,0,101.924,432H0V185.839C53.486,75.925,166.288,0,296.483,0,478.179,0,626,147.873,626,329.634A328.443,328.443,0,0,1,609.739,432Z" transform="translate(-7093.777 -7118.037)" fill="url(#linear-gradient)"/>
+    <path id="Intersection_4" data-name="Intersection 4" d="M85.855,447A255.175,255.175,0,0,1,0,255.79C0,114.521,114.486,0,255.712,0A254.448,254.448,0,0,1,398,43.225v125A167.136,167.136,0,0,0,255.712,88.64c-92.139,0-167.1,74.983-167.1,167.15s74.96,167.15,167.1,167.15A167.136,167.136,0,0,0,398,343.354V447Z" transform="translate(-6591.777 -7133.037)" opacity="0.1" fill="url(#linear-gradient-2)"/>
+    <path id="Intersection_3" data-name="Intersection 3" d="M0,264.581V7.482Q1.781,3.715,3.667,0H130.258A196,196,0,0,0,75.516,136.032c0,108.446,88.2,196.672,196.61,196.672s196.61-88.227,196.61-196.672A196.005,196.005,0,0,0,413.995,0H540.586A299.8,299.8,0,0,1,573,136.032C573,302.252,438.294,437,272.127,437,151.933,437,48.2,366.5,0,264.581Z" transform="translate(-7093.777 -7386.037)" opacity="0.1" fill="url(#linear-gradient-3)"/>
+  </g>
+</svg>
