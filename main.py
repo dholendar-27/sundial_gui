@@ -49,7 +49,7 @@ class MainWindow(QMainWindow):
 
         # Start with the SignIn screen
         self.view_stack()
-        
+
         self.schedule_timer = QTimer(self)
         self.schedule_timer.timeout.connect(self.run_scheduled_tasks)
         self.schedule_timer.start(20000)  # 20 seconds in milliseconds
@@ -99,7 +99,6 @@ class MainWindow(QMainWindow):
         self.onboard_navigate.emit()
 
         if self.onboard_widget:
-            print("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
             self.stack.removeWidget(self.onboard_widget)
             self.onboard_widget.deleteLater()
             self.onboard_widget = None

@@ -5,7 +5,7 @@ import threading
 
 import requests
 from PySide6 import QtCore, QtGui
-from PySide6.QtCore import QCoreApplication, QTimer, Signal
+from PySide6.QtCore import QCoreApplication, QTimer, Signal, Qt, Slot, QObject, QThread
 from PySide6.QtGui import QPixmap, Qt, QIcon, QCursor, QMovie
 from PySide6.QtWidgets import QWidget, QStackedWidget, QHBoxLayout, QApplication, QPushButton, QLabel, QSizePolicy, \
     QVBoxLayout, QLineEdit, QToolButton, QComboBox, QGraphicsDropShadowEffect
@@ -609,30 +609,30 @@ class CompanyPage(QWidget):
         self.company_select_button.setFont(font)
         self.company_select_button.clicked.connect(self.handle_company_selection)
 
+        self.loader = Loader(parent=self, gif_path=resources_path+"\loader.gif")
+
         self.company_loader_overlay = QWidget(self)
         self.company_loader_overlay.setGeometry(0, 0, 800, 600)
         self.company_loader_overlay.setStyleSheet("background-color: rgba(0, 0, 0, 0.5);")
         self.company_loader_overlay.setVisible(False)
 
-        # Centered loader animation
-        self.company_loading_animation = QLabel(self.company_loader_overlay)
-        self.company_loading_animation.setStyleSheet("background:none")
-        self.company_loading_animation.setGeometry((800 // 2) - 50, (600 // 2) - 50, 100, 100)  # Centered position
-        self.company_loading_animation.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
-        self.company_loading_movie = QMovie(resources_path+"\loader.gif")  # Replace with the actual path to your GIF
-        self.company_loading_animation.setMovie(self.company_loading_movie)
+        # # Centered loader animation
+        # self.company_loading_animation = QLabel(self.company_loader_overlay)
+        # self.company_loading_animation.setStyleSheet("background:none")
+        # self.company_loading_animation.setGeometry((800 // 2) - 50, (600 // 2) - 50, 100, 100)  # Centered position
+        # self.company_loading_animation.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+        # self.company_loading_movie = QMovie(resources_path+"\loader.gif")  # Replace with the actual path to your GIF
+        # self.company_loading_animation.setMovie(self.company_loading_movie)
 
-    def start_loader(self):
-        self.company_loader_overlay.setVisible(True)
-        self.company_loader_overlay.raise_()
-        self.company_loading_movie.start()
-        # print("==================================++++> " + str(self.company_loader_overlay.isVisible()))
-        # print("==================================++++> " + str(self.company_loading_movie.frameCount()))
-        self.company_loader_overlay.repaint() 
+    # def start_loader(self):
+    #     self.company_loader_overlay.setVisible(True)
+    #     self.company_loading_movie.start()
+    #     self.company_loader_overlay.raise_()
+    #     self.company_loader_overlay.repaint() 
 
-    def stop_loader(self):
-        self.company_loader_overlay.setVisible(False)
-        self.company_loading_movie.stop()
+    # def stop_loader(self):
+    #     self.company_loader_overlay.setVisible(False)
+    #     self.company_loading_movie.stop()
 
     def process_login_response(self, response_data):
         if response_data["code"] == 'RCW00001':
@@ -700,44 +700,149 @@ class CompanyPage(QWidget):
         self.companyid = next(
             (comp['id'] for comp in self.companies if comp['name'] == self.selected_company), None)
         if self.companyid:
-            self.start_loader()
+            # self.start_loader()
+            self.company_loader_overlay.setVisible(True)
+            self.loader.start()
             email = user_details.get("email", None)
             password = user_details.get("password", None)
             self.perform_login_request(email, password, self.companyid)
         else:
-            self.stop_loader()
+            # self.stop_loader()
+            self.loader.stop()
             self.show_compnay_error_message("Company selection error.")
 
     def perform_login_request(self, email, password, companyid):
         payload = {"userName": email, "password": password, "companyId": companyid or ""}
-        try:
-            response = requests.post(self.host + "/0/ralvie/login", json=payload,
-                                     headers={'Content-Type': 'application/json'})
-            print(response.text)
-            if response.ok:
-                response_data = response.json()
-                if response_data["code"] == "UASI0011":
-                    self.sundail_token = response_data['data']['token']
-                    clear_credentials("SD_KEYS")
-                    cached_credentials = credentials()
-                    cached_credentials['Sundial'] = True
-                    add_password("SD_KEYS", json.dumps(cached_credentials))
-                    self.move_on.emit()
-                else:
-                    self.stop_loader()
-                    self.show_compnay_error_message(response_data["message"])
-        except Exception as e:
-            self.stop_loader()
-            self.show_compnay_error_message(f"Error during login: {str(e)}")
-        finally:
-            self.stop_loader()
-            self.restore_ui_state()
+
+
+        # try:
+        #     response = requests.post(self.host + "/0/ralvie/login", json=payload,
+        #                              headers={'Content-Type': 'application/json'})
+        #     print(response.text)
+        #     if response.ok:
+        #         response_data = response.json()
+        #         if response_data["code"] == "UASI0011":
+        #             self.sundail_token = response_data['data']['token']
+        #             clear_credentials("SD_KEYS")
+        #             cached_credentials = credentials()
+        #             cached_credentials['Sundial'] = True
+        #             add_password("SD_KEYS", json.dumps(cached_credentials))
+        #             self.move_on.emit()
+        #         else:
+        #             # self.stop_loader()
+        #             self.loader.stop()
+        #             self.show_compnay_error_message(response_data["message"])
+        # except Exception as e:
+        #     self.stop_loader()
+        #     self.show_compnay_error_message(f"Error during login: {str(e)}")
+        # finally:
+        #     # self.stop_loader()
+        #     self.loader.stop()
+        #     self.restore_ui_state()
+
+        # Create a QThread
+        self.thread = QThread()
+        self.worker = Worker(self.host, payload)
+        
+        # Move the worker to the thread
+        self.worker.moveToThread(self.thread)
+        
+        # Connect signals
+        self.thread.started.connect(self.worker.run)
+        self.worker.finished.connect(self.on_login_success)
+        self.worker.error.connect(self.on_login_error)
+        self.worker.finished.connect(self.thread.quit)
+        self.worker.finished.connect(self.worker.deleteLater)
+        self.thread.finished.connect(self.thread.deleteLater)
+
+        # Start the thread
+        self.loader.start()  # Start the loader
+        self.thread.start()
+
+    def on_login_success(self, response_data):
+        self.loader.stop()  # Stop the loader
+        self.company_loader_overlay.setVisible(False)
+        if response_data["code"] == "UASI0011":
+            self.sundail_token = response_data['data']['token']
+            clear_credentials("SD_KEYS")
+            cached_credentials = credentials()
+            cached_credentials['Sundial'] = True
+            add_password("SD_KEYS", json.dumps(cached_credentials))
+            self.move_on.emit()  # Proceed to the next screen
+        else:
+            self.company_loader_overlay.setVisible(False)
+            self.show_compnay_error_message(response_data["message"])
+
+    def on_login_error(self, error_message):
+        self.loader.stop()  # Stop the loader
+        self.show_compnay_error_message(error_message)
 
     def restore_ui_state(self):
         self.company_select_button.setIcon(QIcon())  # Clear the icon
         self.company_select_button.setText("Get started")
         self.companySelect.setDisabled(False)
         self.company_select_button.setDisabled(False)
+
+
+class Loader(QWidget):
+    def __init__(self, parent=None, gif_path="loader.gif"):
+        super().__init__(parent)
+        self.setGeometry(0, 0, 800, 600)
+        self.setStyleSheet("background: rgba(0, 0, 0, 0.5);")
+        # self.setStyleSheet("background-color: black;")
+        self.setVisible(False)
+
+        # Centered loader animation
+        self.loader_animation = QLabel(self)
+        self.loader_animation.setStyleSheet("background: none;")
+        loader_size = 100
+        self.loader_animation.setGeometry(
+            (self.width() // 2) - (loader_size // 2), 
+            (self.height() // 2) - (loader_size // 2), 
+            loader_size, loader_size
+        )
+        self.loader_animation.setAlignment(Qt.AlignCenter)
+        self.loader_movie = QMovie(gif_path)
+        self.loader_animation.setMovie(self.loader_movie)
+
+    def start(self):
+        """Start the loader animation."""
+        self.setGeometry(0, 0, self.parent().width(), self.parent().height())
+        self.setVisible(True)
+        self.raise_()
+        self.loader_movie.start()
+        # self.repaint()
+        QTimer.singleShot(0, self.repaint)
+
+    def stop(self):
+        """Stop the loader animation."""
+        self.loader_movie.stop()
+        self.setVisible(False)
+
+class Worker(QObject):
+    finished = Signal(dict)  # Signal to emit the result of the API call
+    error = Signal(str)  # Signal to emit error messages
+
+    def __init__(self, host, payload):
+        super().__init__()
+        self.host = host
+        self.payload = payload
+
+    @Slot()
+    def run(self):
+        try:
+            response = requests.post(
+                self.host + "/0/ralvie/login",
+                json=self.payload,
+                headers={"Content-Type": "application/json"},
+            )
+            if response.ok:
+                self.finished.emit(response.json())
+            else:
+                self.error.emit("Error: " + response.text)
+        except Exception as e:
+            self.error.emit(f"Exception: {str(e)}")
+
 
 
 if __name__ == "__main__":
