@@ -13,7 +13,7 @@ from sd_qt.sd_desktop.onboard import Onboarding
 from sd_qt.sd_desktop.signin import SignIn
 from sd_qt.sd_desktop.util import credentials
 from sd_qt.restart import manage_watchers
-
+from sd_qt.sd_desktop.util import events_cache
 if sys.platform == "darwin":
     from AppKit import NSApplication, NSApplicationActivationPolicyAccessory, NSApplicationActivationPolicyRegular
 
@@ -119,6 +119,7 @@ class MainWindow(QMainWindow):
 
     def sign_out(self):
         """Sign out the user and return to the sign-in screen."""
+        events_cache.clear()
         cached_creds = credentials()
         if cached_creds:
             cached_creds['Sundial'] = False

@@ -84,7 +84,7 @@ def get_events():
         events_cache.clear()
         print("Cache cleared as the day has passed.")
 
-    print(events_cache.get(events_cache_key))
+    print("stored events ==> " + str(events_cache.get(events_cache_key)))
 
     return events_cache.get(events_cache_key)
 
@@ -96,11 +96,20 @@ def listView( events):
         start_time_utc = datetime.strptime(event['start'], "%Y-%m-%dT%H:%M:%SZ")
         end_time_utc = datetime.strptime(event['end'], "%Y-%m-%dT%H:%M:%SZ")
 
-        start_time_local = start_time_utc.replace(tzinfo=pytz.utc).astimezone(local_tz).strftime("%H:%M")
-        end_time_local = end_time_utc.replace(tzinfo=pytz.utc).astimezone(local_tz).strftime("%H:%M")
+        start_time_local = start_time_utc.replace(tzinfo=pytz.utc).astimezone(local_tz).strftime("%H:%M:%S")
+        end_time_local = end_time_utc.replace(tzinfo=pytz.utc).astimezone(local_tz).strftime("%H:%M:%S")
+        # time_difference = end_time_local - start_time_local
+
+        time_format = "%H:%M:%S"
+
+        start_time = datetime.strptime(start_time_local, time_format)
+        end_time = datetime.strptime(end_time_local, time_format)
+
+        time_difference = end_time - start_time
+        difference_str = str(time_difference)
 
         formatted_event = {
-            'time': f"{start_time_local} - {end_time_local}",
+            'time': difference_str,
             'app': event['application_name'],  # Using 'application_name' as specified in your data
             'id': event['event_id'],           # Using 'event_id' as the unique identifier
             'end': event['end']                # Including 'end' for cache clearing checks
