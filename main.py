@@ -4,7 +4,7 @@ import time  # Import time module for measuring load time
 import schedule
 from pathlib import Path
 from PySide6.QtCore import QSettings, Signal, QEvent, QTimer
-from PySide6.QtWidgets import QMainWindow, QApplication, QStackedWidget, QSystemTrayIcon, QMenu
+from PySide6.QtWidgets import QMainWindow, QApplication, QStackedWidget, QSystemTrayIcon, QMenu, QMessageBox, QCheckBox, QWidgetAction, QPushButton
 from PySide6.QtGui import QIcon, QSurfaceFormat, QAction
 from sd_qt.sd_desktop.ThemeManager import ThemeManager
 from sd_core.cache import add_password
@@ -14,14 +14,24 @@ from sd_qt.sd_desktop.signin import SignIn
 from sd_qt.sd_desktop.util import credentials
 from sd_qt.restart import manage_watchers
 from sd_qt.sd_desktop.util import events_cache
+from PySide6 import QtCore
+import requests
+import logging
+
+from sd_qt.sd_desktop.util import add_settings, retrieve_settings
 if sys.platform == "darwin":
     from AppKit import NSApplication, NSApplicationActivationPolicyAccessory, NSApplicationActivationPolicyRegular
+
+logger = logging.getLogger(__name__)
+
 
 class MainWindow(QMainWindow):
     onboard_navigate = Signal()  # Signal to trigger navigation check
 
     def __init__(self):
         super().__init__()
+
+        self.host = "http://localhost:7600/api"
         self.theme_manager = ThemeManager()
         self.theme_manager.theme_Changed.connect(self.theme_manager.switch_theme)
         self.setWindowTitle("Sundial")
@@ -54,11 +64,17 @@ class MainWindow(QMainWindow):
         self.schedule_timer.timeout.connect(self.run_scheduled_tasks)
         self.schedule_timer.start(20000)  # 20 seconds in milliseconds
 
+        self.expanded_menu = None  # Initialize expanded_menu attribute
+
         # Schedule the manage_watchers task
         schedule.every(20).seconds.do(manage_watchers)
 
+        self.menu = QMenu()
+
         # Setup system tray icon
         self.setupSystemTray()
+
+        self.retrieve = retrieve_settings()
 
     def run_scheduled_tasks(self):
         """Run scheduled tasks."""
@@ -140,6 +156,8 @@ class MainWindow(QMainWindow):
     def setupSystemTray(self):
         """Setup the system tray icon and menu."""
         scriptdir = Path(__file__).parent.parent
+        QtCore.QDir.addSearchPath("icons", str(scriptdir.parent / "media/logo/"))
+        QtCore.QDir.addSearchPath("icons", str(scriptdir.parent.parent / "Resources/aw_qt/media/logo/"))
 
         # Set the icon based on the platform
         if sys.platform == "darwin":
@@ -153,26 +171,32 @@ class MainWindow(QMainWindow):
         self.tray_icon.setToolTip("Sundial Application")
 
         # Create a menu for the tray icon
-        tray_menu = QMenu()
+        self.menu = QMenu()
 
         # "Open" action to show the window
         open_action = QAction("Open", self)
         open_action.triggered.connect(self.show_window)
-        tray_menu.addAction(open_action)
+        self.menu.addAction(open_action)
 
         # "Quit" action to quit the application
         quit_action = QAction("Quit", self)
         quit_action.triggered.connect(self.quit_application)
-        tray_menu.addAction(quit_action)
+        self.menu.addAction(quit_action)
+
+        # Add "Logged In Menu" trigger
+        login_action = QAction("Login", self)
+        self.menu.addAction(login_action)
+        login_action.triggered.connect(self.show_login_menu)
 
         # Set the context menu for the tray icon
-        self.tray_icon.setContextMenu(tray_menu)
+        self.tray_icon.setContextMenu(self.menu)
 
         # Show the tray icon
         self.tray_icon.show()
 
         # Connect the tray icon activation to a function
         self.tray_icon.activated.connect(self.on_tray_icon_activated)
+
 
     def update_dock_icon_policy(self):
         """Update the dock icon based on the current window state (macOS specific)."""
@@ -236,6 +260,149 @@ class MainWindow(QMainWindow):
             else:
                 self.setStyleSheet("background-color: lightgray;")
         super(MainWindow, self).changeEvent(event)
+
+    # =========================================================================================
+    # Open2
+
+    def show_login_menu(self):
+        """Show the login menu with checkboxes for schedule days."""
+        if self.expanded_menu is None:
+            self.expanded_menu = QMenu("Logged In Menu", self.menu)
+
+            # Add sub-actions
+            open_dashboard_action = QAction("Open Dashboard", self)
+            launch_on_start_action = QAction("Launch on Start", self)
+            idle_time_action = QAction("Idle Time", self)
+            quit_action = QAction("Quit", self)
+
+            # Add schedule submenu
+            schedule_menu = QMenu("Schedule", self.expanded_menu)
+            days_of_week = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+            self.schedule_checkboxes = {}
+            for day in days_of_week:
+                checkbox_action = QWidgetAction(schedule_menu)
+                checkbox = QCheckBox(day)
+                checkbox_action.setDefaultWidget(checkbox)
+                schedule_menu.addAction(checkbox_action)
+                self.schedule_checkboxes[day] = checkbox 
+                # Optional: Connect checkbox state changes to a function
+                checkbox.stateChanged.connect(lambda state, d=day: self.handle_checkbox_state(d, state))
+            
+            save_action = QWidgetAction(schedule_menu)
+            save_button = QPushButton("Save")
+            save_button.clicked.connect(self.save_schedule_settings)
+            save_action.setDefaultWidget(save_button)
+            schedule_menu.addAction(save_action)
+
+            weekdays_schedule = self.retrieve.get('weekdays_schedule', {})
+            logger.info(f"Weekdys_schedule====> {weekdays_schedule}")
+
+            pre_launch = self.retrieve.get('launch', False)
+            pre_idle = self.retrieve.get('idle_time', False)
+
+            for day, is_checked in weekdays_schedule.items():
+                if day in self.schedule_checkboxes:
+                    self.schedule_checkboxes[day].setChecked(is_checked)
+
+            launch_on_start_action.setCheckable(True)  # Make it checkable
+            idle_time_action.setCheckable(True)
+
+            launch_on_start_action.setChecked(pre_launch)
+            idle_time_action.setChecked(pre_idle)
+
+            # Add actions to the expanded menu
+            self.expanded_menu.addMenu(schedule_menu)
+            self.expanded_menu.addAction(open_dashboard_action)
+            self.expanded_menu.addAction(launch_on_start_action)
+            self.expanded_menu.addAction(idle_time_action)
+            self.expanded_menu.addAction(quit_action)
+
+            # Event handling for the new actions
+            open_dashboard_action.triggered.connect(self.open_dashboard)
+            launch_on_start_action.triggered.connect(self.start_up_status)
+            idle_time_action.triggered.connect(self.set_idle_time)
+            quit_action.triggered.connect(self.quit_application)
+            
+            self.tray_icon.setContextMenu(self.expanded_menu)
+
+            # Replace the "Login" action with the expanded menu
+            self.menu.clear()
+            self.menu.addMenu(self.expanded_menu)
+
+    def save_schedule_settings(self):
+        """Collect the state of schedule checkboxes and save settings."""
+        schedule_data = {day: checkbox.isChecked() for day, checkbox in self.schedule_checkboxes.items()}
+        print("Schedule settings to save:", schedule_data)
+        # You can serialize the schedule_data to save it
+        add_settings("weekdays_schedule", schedule_data)
+        
+    def handle_checkbox_state(self, day, state):
+        """Handle state change for schedule checkboxes."""
+        state_text = "checked" if state == QtCore.Qt.Checked else "unchecked"
+        print(f"{day} is {state_text}.")
+
+    def start_up_status(self, state):
+        # status = "start" if self.start_up_checkbox.isChecked() else "stop"
+        print("STATE============> " + str(state))
+        status = 'start'
+        if state == True:
+            status = 'start'
+        else:
+            status = 'stop'
+        self.launch_on_start(status)
+
+    def launch_on_start(self, status):
+        params = {"status": status}
+        creds = credentials()
+
+        if creds and "token" in creds:
+            sundial_token = creds["token"]
+            self.send_request(f"{self.host}/0/launchOnStart", sundial_token, params)
+
+    def send_request(self, url, token, params):
+        try:
+            response = requests.get(url, headers={"Authorization": f"Bearer {token}"}, params=params)
+            if response.status_code == 200:
+                print("Request successful")
+            else:
+                print(f"Request failed: {response.status_code}, {response.text}")
+        except requests.RequestException as e:
+            print(f"An error occurred while sending the request: {e}")
+    
+    def open_dashboard(self):
+        self.show_message("Opening Dashboard (Placeholder).")
+
+    def set_idle_time(self, state):
+        status = 'start'
+        if state == True:
+            status = 'start'
+        else:
+            status = 'stop'
+        self._update_idletime_status(status)
+
+    def _update_idletime_status(self, status):
+        params = {"status": status}
+        creds = credentials()
+        if creds and "token" in creds:
+            self._send_request("/0/idletime", creds["token"], params)
+
+    def _send_request(self, endpoint, token, params):
+        try:
+            response = requests.get(
+                self.host + endpoint,
+                headers={"Authorization": f"Bearer {token}"},
+                params=params
+            )
+            if response.status_code == 200:
+                print(f"{endpoint} updated successfully")
+            else:
+                print(f"Failed to update {endpoint}: {response.status_code}, {response.text}")
+        except requests.RequestException as e:
+            print(f"An error occurred while sending the request: {e}")
+
+    def show_message(self, message):
+        """Display a message to the user."""
+        QMessageBox.information(None, "Information", message)
 
 
 def run_application():
